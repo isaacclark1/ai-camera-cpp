@@ -69,24 +69,10 @@ include CMakeFiles/AICamera.dir/progress.make
 # Include the compile flags for this target's objects.
 include CMakeFiles/AICamera.dir/flags.make
 
-CMakeFiles/AICamera.dir/src/detection_inference.cpp.o: CMakeFiles/AICamera.dir/flags.make
-CMakeFiles/AICamera.dir/src/detection_inference.cpp.o: /home/isaac/projects/ai-camera-cpp/src/detection_inference.cpp
-CMakeFiles/AICamera.dir/src/detection_inference.cpp.o: CMakeFiles/AICamera.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/AICamera.dir/src/detection_inference.cpp.o"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AICamera.dir/src/detection_inference.cpp.o -MF CMakeFiles/AICamera.dir/src/detection_inference.cpp.o.d -o CMakeFiles/AICamera.dir/src/detection_inference.cpp.o -c /home/isaac/projects/ai-camera-cpp/src/detection_inference.cpp
-
-CMakeFiles/AICamera.dir/src/detection_inference.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/AICamera.dir/src/detection_inference.cpp.i"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/isaac/projects/ai-camera-cpp/src/detection_inference.cpp > CMakeFiles/AICamera.dir/src/detection_inference.cpp.i
-
-CMakeFiles/AICamera.dir/src/detection_inference.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/AICamera.dir/src/detection_inference.cpp.s"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/isaac/projects/ai-camera-cpp/src/detection_inference.cpp -o CMakeFiles/AICamera.dir/src/detection_inference.cpp.s
-
 CMakeFiles/AICamera.dir/src/main.cpp.o: CMakeFiles/AICamera.dir/flags.make
 CMakeFiles/AICamera.dir/src/main.cpp.o: /home/isaac/projects/ai-camera-cpp/src/main.cpp
 CMakeFiles/AICamera.dir/src/main.cpp.o: CMakeFiles/AICamera.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/AICamera.dir/src/main.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/AICamera.dir/src/main.cpp.o"
 	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AICamera.dir/src/main.cpp.o -MF CMakeFiles/AICamera.dir/src/main.cpp.o.d -o CMakeFiles/AICamera.dir/src/main.cpp.o -c /home/isaac/projects/ai-camera-cpp/src/main.cpp
 
 CMakeFiles/AICamera.dir/src/main.cpp.i: cmake_force
@@ -97,24 +83,10 @@ CMakeFiles/AICamera.dir/src/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/AICamera.dir/src/main.cpp.s"
 	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/isaac/projects/ai-camera-cpp/src/main.cpp -o CMakeFiles/AICamera.dir/src/main.cpp.s
 
-CMakeFiles/AICamera.dir/src/server.cpp.o: CMakeFiles/AICamera.dir/flags.make
-CMakeFiles/AICamera.dir/src/server.cpp.o: /home/isaac/projects/ai-camera-cpp/src/server.cpp
-CMakeFiles/AICamera.dir/src/server.cpp.o: CMakeFiles/AICamera.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/AICamera.dir/src/server.cpp.o"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AICamera.dir/src/server.cpp.o -MF CMakeFiles/AICamera.dir/src/server.cpp.o.d -o CMakeFiles/AICamera.dir/src/server.cpp.o -c /home/isaac/projects/ai-camera-cpp/src/server.cpp
-
-CMakeFiles/AICamera.dir/src/server.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/AICamera.dir/src/server.cpp.i"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/isaac/projects/ai-camera-cpp/src/server.cpp > CMakeFiles/AICamera.dir/src/server.cpp.i
-
-CMakeFiles/AICamera.dir/src/server.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/AICamera.dir/src/server.cpp.s"
-	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/isaac/projects/ai-camera-cpp/src/server.cpp -o CMakeFiles/AICamera.dir/src/server.cpp.s
-
 CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o: CMakeFiles/AICamera.dir/flags.make
 CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o: /home/isaac/projects/ai-camera-cpp/src/yolo_hailortpp.cpp
 CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o: CMakeFiles/AICamera.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o"
 	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o -MF CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o.d -o CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o -c /home/isaac/projects/ai-camera-cpp/src/yolo_hailortpp.cpp
 
 CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.i: cmake_force
@@ -127,17 +99,13 @@ CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.s: cmake_force
 
 # Object files for target AICamera
 AICamera_OBJECTS = \
-"CMakeFiles/AICamera.dir/src/detection_inference.cpp.o" \
 "CMakeFiles/AICamera.dir/src/main.cpp.o" \
-"CMakeFiles/AICamera.dir/src/server.cpp.o" \
 "CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o"
 
 # External object files for target AICamera
 AICamera_EXTERNAL_OBJECTS =
 
-AICamera: CMakeFiles/AICamera.dir/src/detection_inference.cpp.o
 AICamera: CMakeFiles/AICamera.dir/src/main.cpp.o
-AICamera: CMakeFiles/AICamera.dir/src/server.cpp.o
 AICamera: CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o
 AICamera: CMakeFiles/AICamera.dir/build.make
 AICamera: /usr/lib/libhailort.so.4.20.0
@@ -201,7 +169,7 @@ AICamera: /usr/lib/aarch64-linux-gnu/libopencv_photo.so.4.6.0
 AICamera: /usr/lib/aarch64-linux-gnu/libopencv_imgproc.so.4.6.0
 AICamera: /usr/lib/aarch64-linux-gnu/libopencv_core.so.4.6.0
 AICamera: CMakeFiles/AICamera.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX executable AICamera"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable AICamera"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/AICamera.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

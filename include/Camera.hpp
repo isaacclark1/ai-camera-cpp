@@ -35,11 +35,11 @@ using CVMiddlewareCallback = std::function<void(cv::Mat &)>;
  * Camera encapsulates the functionality to capture frames from a camera, process them,
  * and provide callbacks.
  */
-class AICamera
+class Camera
 {
   private:
     ThreadPool threadPool;
-    DetectionInference detectionInference;
+    DetectionInference &detectionInference;
     FrameReadyCallback frameReadyCallback;
     CVMiddlewareCallback cvMiddlewareCallback;
 
@@ -93,10 +93,12 @@ class AICamera
     std::unique_ptr<libcamera::CameraManager> cameraManager;
     std::vector<std::unique_ptr<libcamera::Request>> requests; // A vector of requests (one per frame)
 
-    AICamera()
+    Camera()
+      : threadPool(4),
+        detectionInference(DetectionInference::getInstance(
+          "/home/isaac/projects/ai-camera-cpp/network-files/yolov8s.hef", 1080, 1920
+        ))
     {
-      threadPool.setupThreads(4);
-
       detectionInference.setMatCallback(
         [this](cv::Mat mat, std::vector<HailoDetectionPtr> &detections)
         {
@@ -105,7 +107,7 @@ class AICamera
       );
     }
 
-    ~AICamera() {}
+    ~Camera() {}
 };
 
 /**
@@ -114,7 +116,7 @@ class AICamera
  * This function sets JPEG compression parameters, encodes the image, and stores the
  * result in a buffer
  */
-void AICamera::convertToJpeg(const cv::Mat &frame, std::vector<unsigned char> &buffer, const int quality)
+void Camera::convertToJpeg(const cv::Mat &frame, std::vector<unsigned char> &buffer, const int quality)
 {
   std::vector<int> compressionParams;
   compressionParams.push_back(cv::IMWRITE_JPEG_QUALITY);
@@ -136,7 +138,7 @@ void AICamera::convertToJpeg(const cv::Mat &frame, std::vector<unsigned char> &b
  * This function is called by the inference engine when a new frame is processed.
  * It enqueues a task in the thread pool to convert the frame to JPEG and call the frameReadyCallback.
  */
-void AICamera::matCallback(cv::Mat mat, std::vector<HailoDetectionPtr> &detections)
+void Camera::matCallback(cv::Mat mat, std::vector<HailoDetectionPtr> &detections)
 {
   threadPool.enqueue([mat, detections, this]()
   {
@@ -156,7 +158,7 @@ void AICamera::matCallback(cv::Mat mat, std::vector<HailoDetectionPtr> &detectio
  * It maps the buffer into CPU-accessible memory, convert the raw image to a BGR image,
  * flips it (if necessary), and enqueues it for detection inference.
  */
-void AICamera::bufferComplete(libcamera::Request *request, libcamera::FrameBuffer *frameBuffer)
+void Camera::bufferComplete(libcamera::Request *request, libcamera::FrameBuffer *frameBuffer)
 {
   // Map the frame buffer for reading
   libcamera::MappedFrameBuffer mappedBuffer(frameBuffer, libcamera::MappedFrameBuffer::MapFlag::Read);
@@ -172,7 +174,7 @@ void AICamera::bufferComplete(libcamera::Request *request, libcamera::FrameBuffe
   // Flip the image upside down
   // cv::flip(bgrImage, bgrImage, -1);
 
-  threadPool.enqueue([bgrImage, this]() { detectionInference.writeFrame(bgrImage); });
+  this->threadPool.enqueue([bgrImage, this]() { this->detectionInference.writeFrameToDevice(bgrImage); });
 }
 
 /**
@@ -181,7 +183,7 @@ void AICamera::bufferComplete(libcamera::Request *request, libcamera::FrameBuffe
  * Called when a camera Request (which holds frame buffers) is completed.
  * It re-queues the request for continued capture and, if needed, processes the frame.
  */
-void AICamera::requestComplete(libcamera::Request *request)
+void Camera::requestComplete(libcamera::Request *request)
 {
   // If the request was cancelled or camera is not running, ignore.
   if (request->status() == libcamera::Request::RequestCancelled || !isCameraRolling) {
@@ -203,7 +205,7 @@ void AICamera::requestComplete(libcamera::Request *request)
  * Uses camera properties (like location) to return a friendly name,
  * appending the unique camera ID.
  */
-std::string AICamera::cameraName(libcamera::Camera *camera)
+std::string Camera::cameraName(libcamera::Camera *camera)
 {
   const libcamera::ControlList &props = camera->properties();
   std::string name;
@@ -212,7 +214,7 @@ std::string AICamera::cameraName(libcamera::Camera *camera)
   
   // Determine the camera location and assign a corresponding name
   if (locationOption) {
-    switch(*locationOption) {
+    switch (*locationOption) {
       case libcamera::properties::CameraLocationFront:
         name = "Internal front camera";
         break;
@@ -241,7 +243,7 @@ std::string AICamera::cameraName(libcamera::Camera *camera)
  * Initialises the CameraManager, acquires a camera, configures it, allocates
  * frame buffers, sets up requests, and connects signal callbacks.
  */
-int AICamera::startCameraPipeline()
+int Camera::startCameraPipeline()
 {
   if (isPipelineStarted) {
     return EXIT_SUCCESS;
@@ -375,13 +377,12 @@ int AICamera::startCameraPipeline()
     // Store the request for future reuse
     requests.push_back(std::move(request));
 
-    // Enqueue a task in the thread pool to start detection on a frame
-    threadPool.enqueue([this]() { this->detectionInference.startDetection(1080, 1920); });
+    threadPool.enqueue([this]() { this->detectionInference.start(); });
   }
 
   // Connect the camera's signals to the callback functions to handle completed requests and buffers
-  camera->requestCompleted.connect(this, &AICamera::requestComplete);
-  camera->bufferCompleted.connect(this, &AICamera::bufferComplete);
+  camera->requestCompleted.connect(this, &Camera::requestComplete);
+  camera->bufferCompleted.connect(this, &Camera::bufferComplete);
 
   // Start capturing frames from the camera
   camera->start();
@@ -393,7 +394,7 @@ int AICamera::startCameraPipeline()
 /**
  * Queue all pre-prepared requests to the camera and run the capture loop
  */
-int AICamera::startFrameCapture()
+int Camera::startFrameCapture()
 {
   if (isCameraRolling) {
     return EXIT_SUCCESS;
@@ -417,7 +418,7 @@ int AICamera::startFrameCapture()
  * 
  * Stops the camera, releases resources, disconnects signals, and cleans up memory.
  */
-int AICamera::finish()
+int Camera::finish()
 {
   if (!isCameraRolling) {
     return EXIT_SUCCESS;
@@ -433,8 +434,8 @@ int AICamera::finish()
   this->detectionInference.stop();
 
   // Disconnect the signal connections
-  camera->requestCompleted.disconnect(this, &AICamera::requestComplete);
-  camera->bufferCompleted.disconnect(this, &AICamera::bufferComplete);
+  camera->requestCompleted.disconnect(this, &Camera::requestComplete);
+  camera->bufferCompleted.disconnect(this, &Camera::bufferComplete);
 
   // Free allocated buffers and clean up the allocator
   frameBufferAllocator->free(cameraStream);

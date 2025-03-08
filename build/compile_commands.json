@@ -11,11 +11,6 @@
 },
 {
   "directory": "/home/isaac/projects/ai-camera-cpp/build",
-  "command": "/usr/bin/aarch64-linux-gnu-g++ -DHAILORT_MAJOR_VERSION=4 -DHAILORT_MINOR_VERSION=20 -DHAILORT_REVISION_VERSION=0 -I/home/isaac/projects/ai-camera-cpp/include -I/usr/local/include/uSockets -I/usr/local/include/uWebSockets -I/usr/include/libcamera -I/usr/include/nlohmann -isystem /usr/include/opencv4 -g -Wall -Wextra -Wconversion -O3 -fconcepts -Wno-ignored-qualifiers -Wno-extra -Wno-stringop-truncation -Wno-reorder -std=gnu++20 -o CMakeFiles/AICamera.dir/src/server.cpp.o -c /home/isaac/projects/ai-camera-cpp/src/server.cpp",
-  "file": "/home/isaac/projects/ai-camera-cpp/src/server.cpp"
-},
-{
-  "directory": "/home/isaac/projects/ai-camera-cpp/build",
   "command": "/usr/bin/aarch64-linux-gnu-g++ -DHAILORT_MAJOR_VERSION=4 -DHAILORT_MINOR_VERSION=20 -DHAILORT_REVISION_VERSION=0 -I/home/isaac/projects/ai-camera-cpp/include -I/usr/local/include/uSockets -I/usr/local/include/uWebSockets -I/usr/include/libcamera -I/usr/include/nlohmann -isystem /usr/include/opencv4 -g -Wall -Wextra -Wconversion -O3 -fconcepts -Wno-ignored-qualifiers -Wno-extra -Wno-stringop-truncation -Wno-reorder -std=gnu++20 -o CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o -c /home/isaac/projects/ai-camera-cpp/src/yolo_hailortpp.cpp",
   "file": "/home/isaac/projects/ai-camera-cpp/src/yolo_hailortpp.cpp"
 }

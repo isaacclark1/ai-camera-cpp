@@ -129,30 +129,6 @@ AICamera/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/build
 .PHONY : AICamera/fast
 
-src/detection_inference.o: src/detection_inference.cpp.o
-.PHONY : src/detection_inference.o
-
-# target to build an object file
-src/detection_inference.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/detection_inference.cpp.o
-.PHONY : src/detection_inference.cpp.o
-
-src/detection_inference.i: src/detection_inference.cpp.i
-.PHONY : src/detection_inference.i
-
-# target to preprocess a source file
-src/detection_inference.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/detection_inference.cpp.i
-.PHONY : src/detection_inference.cpp.i
-
-src/detection_inference.s: src/detection_inference.cpp.s
-.PHONY : src/detection_inference.s
-
-# target to generate assembly for a file
-src/detection_inference.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/detection_inference.cpp.s
-.PHONY : src/detection_inference.cpp.s
-
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -176,30 +152,6 @@ src/main.s: src/main.cpp.s
 src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
-
-src/server.o: src/server.cpp.o
-.PHONY : src/server.o
-
-# target to build an object file
-src/server.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/server.cpp.o
-.PHONY : src/server.cpp.o
-
-src/server.i: src/server.cpp.i
-.PHONY : src/server.i
-
-# target to preprocess a source file
-src/server.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/server.cpp.i
-.PHONY : src/server.cpp.i
-
-src/server.s: src/server.cpp.s
-.PHONY : src/server.s
-
-# target to generate assembly for a file
-src/server.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/server.cpp.s
-.PHONY : src/server.cpp.s
 
 src/yolo_hailortpp.o: src/yolo_hailortpp.cpp.o
 .PHONY : src/yolo_hailortpp.o
@@ -234,15 +186,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... AICamera"
-	@echo "... src/detection_inference.o"
-	@echo "... src/detection_inference.i"
-	@echo "... src/detection_inference.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
-	@echo "... src/server.o"
-	@echo "... src/server.i"
-	@echo "... src/server.s"
 	@echo "... src/yolo_hailortpp.o"
 	@echo "... src/yolo_hailortpp.i"
 	@echo "... src/yolo_hailortpp.s"

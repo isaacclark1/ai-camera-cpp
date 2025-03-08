@@ -81,12 +81,12 @@ clean: CMakeFiles/AICamera.dir/clean
 CMakeFiles/AICamera.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles --progress-num=1,2,3,4,5 "Built target AICamera"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles --progress-num=1,2,3 "Built target AICamera"
 .PHONY : CMakeFiles/AICamera.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/AICamera.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles 5
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles 3
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/AICamera.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/isaac/projects/ai-camera-cpp/build/aarch64/CMakeFiles 0
 .PHONY : CMakeFiles/AICamera.dir/rule

@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <deque>
+#include <stdexcept>
 
 /**
  * Bounded queue that holds frames from the camera.

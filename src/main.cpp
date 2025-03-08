@@ -1,6 +1,7 @@
-#include "server.hpp"
+#include "server/Server.hpp"
 
 int main(int argc, char** argv) {
-  startServer(9898);
+  Server &server = Server::getInstance();
+  server.startServer(9898);
   return 0;
 }
