@@ -3,8 +3,6 @@ file(REMOVE_RECURSE
   "AICamera.pdb"
   "CMakeFiles/AICamera.dir/src/main.cpp.o"
   "CMakeFiles/AICamera.dir/src/main.cpp.o.d"
-  "CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o"
-  "CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o.d"
 )
 
 # Per-language clean rules from dependency scanning.

@@ -7,6 +7,7 @@
  #include <string>
  #include <iostream>
  #include <regex>
+ #include <unordered_map>
  
  // Include project-specific headers that define Hailo objects and YOLO utilities.
  #include "hailo_objects.hpp"
@@ -26,7 +27,7 @@
      HailoTensorPtr _nms_output_tensor;
  
      // Mapping from class IDs (as uint8_t) to their string labels.
-     std::map<uint8_t, std::string> labels_dict;
+     std::unordered_map<uint8_t, std::string> labels_dict;
  
      // Detection threshold: Only detections with a score higher than this are considered.
      float _detection_thr;
@@ -77,18 +78,19 @@
      }
  
      // Computes the width and height of a bounding box from the given bounding box structure.
-     std::pair<float, float> get_shape(auto *bbox_struct)
+     template <typename T>
+     std::pair<float32_t, float32_t> get_shape(T *bbox_struct)
      {
          float32_t w = static_cast<float32_t>(bbox_struct->x_max - bbox_struct->x_min);
          float32_t h = static_cast<float32_t>(bbox_struct->y_max - bbox_struct->y_min);
-         return std::pair<float, float>(w, h);
+         return std::pair<float32_t, float32_t>(w, h);
      }
  
  public:
      // Constructor for HailoNMSDecode.
      // Initializes the decoder with the given output tensor, label mapping, detection threshold,
      // maximum number of boxes, and a flag indicating whether to filter by score.
-     HailoNMSDecode(HailoTensorPtr tensor, std::map<uint8_t, std::string> &labels_dict, float detection_thr = DEFAULT_THRESHOLD, uint max_boxes = DEFAULT_MAX_BOXES, bool filter_by_score = false)
+     HailoNMSDecode(HailoTensorPtr tensor, std::unordered_map<uint8_t, std::string> &labels_dict, float detection_thr = DEFAULT_THRESHOLD, uint max_boxes = DEFAULT_MAX_BOXES, bool filter_by_score = false)
          : _nms_output_tensor(tensor),
            labels_dict(labels_dict),
            _detection_thr(detection_thr),

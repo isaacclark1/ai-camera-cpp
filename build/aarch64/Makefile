@@ -153,30 +153,6 @@ src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
-src/yolo_hailortpp.o: src/yolo_hailortpp.cpp.o
-.PHONY : src/yolo_hailortpp.o
-
-# target to build an object file
-src/yolo_hailortpp.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.o
-.PHONY : src/yolo_hailortpp.cpp.o
-
-src/yolo_hailortpp.i: src/yolo_hailortpp.cpp.i
-.PHONY : src/yolo_hailortpp.i
-
-# target to preprocess a source file
-src/yolo_hailortpp.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.i
-.PHONY : src/yolo_hailortpp.cpp.i
-
-src/yolo_hailortpp.s: src/yolo_hailortpp.cpp.s
-.PHONY : src/yolo_hailortpp.s
-
-# target to generate assembly for a file
-src/yolo_hailortpp.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/AICamera.dir/build.make CMakeFiles/AICamera.dir/src/yolo_hailortpp.cpp.s
-.PHONY : src/yolo_hailortpp.cpp.s
-
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -189,9 +165,6 @@ help:
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
-	@echo "... src/yolo_hailortpp.o"
-	@echo "... src/yolo_hailortpp.i"
-	@echo "... src/yolo_hailortpp.s"
 .PHONY : help
 
 

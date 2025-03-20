@@ -1,14 +1,13 @@
 #ifndef THREADPOOL_HPP // Header guard to prevent multiple inclusions
 #define THREADPOOL_HPP
 
-// necessary includes for multithreading and synchronisation
-#include <atomic>             // Atomic variable (thread-safe boolean)
-#include <condition_variable> // Used for thread synchronisation
-#include <functional>         // Allows storing callable functions
-#include <mutex>              // Mutex for locking shared resources
-#include <queue>              // Queue to store tasks
-#include <thread>             // Thread support
-#include <vector>             // Vector to store multiple threads
+#include <atomic>
+#include <condition_variable>
+#include <functional>
+#include <mutex>
+#include <queue>
+#include <thread>
+#include <vector>
 
 /**
  * ThreadPool manages a group of worker threads to execute tasks concurrently.
@@ -19,11 +18,11 @@
 class ThreadPool
 {
   private:
-    std::vector<std::thread> workers;        // Stores the worker threads
-    std::queue<std::function<void()>> tasks; // Task queue (FIFO order)
-    std::mutex queueMutex;                   // Mutex to protect access to the task queue
-    std::condition_variable condition;       // Condition variable for task scheduling
-    std::atomic<bool> stop;                  // Atomic flag to indicate when to stop threads
+    std::vector<std::thread> workers;
+    std::queue<std::function<void()>> tasks;
+    std::mutex queueMutex;
+    std::condition_variable condition;
+    std::atomic<bool> stop;
 
   public:
     // Default constructor - creates an empty ThreadPool

@@ -194,9 +194,7 @@
 			},
 			"sourceIndexes" : 
 			[
-				0,
-				1,
-				2
+				0
 			]
 		}
 	],
@@ -534,9 +532,7 @@
 			"name" : "Source Files",
 			"sourceIndexes" : 
 			[
-				0,
-				1,
-				2
+				0
 			]
 		}
 	],
@@ -545,19 +541,7 @@
 		{
 			"backtrace" : 1,
 			"compileGroupIndex" : 0,
-			"path" : "src/detection_inference.cpp",
-			"sourceGroupIndex" : 0
-		},
-		{
-			"backtrace" : 1,
-			"compileGroupIndex" : 0,
 			"path" : "src/main.cpp",
-			"sourceGroupIndex" : 0
-		},
-		{
-			"backtrace" : 1,
-			"compileGroupIndex" : 0,
-			"path" : "src/yolo_hailortpp.cpp",
 			"sourceGroupIndex" : 0
 		}
 	],

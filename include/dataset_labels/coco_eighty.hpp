@@ -3,10 +3,10 @@
 * Distributed under the LGPL license (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt)
 **/
 #pragma once
-#include <map>
+#include <unordered_map>
 namespace common
 {
-    static std::map<uint8_t, std::string> coco_eighty_classes = {
+    static std::unordered_map<uint8_t, std::string> coco_eighty_classes = {
         {0, "unlabeled"},
         {1, "person"},
         {2, "bicycle"},

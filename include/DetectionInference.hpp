@@ -11,7 +11,6 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <common.h>
-#include <yolo_hailortpp.hpp>
 #include "hailo_objects.hpp"
 #include "FrameQueue.hpp"
 #include <hailo/hailort.hpp>
@@ -20,12 +19,19 @@
 #include "dataset_labels/coco_ninety.hpp"
 #include "hailo_nms_decode.hpp"
 #include <stdexcept>
+#include "hailo_common.hpp"
+#include <unordered_map>
+#include "bbox_colours/bbox_colours.hpp"
+#include "global/log_colours.hpp"
+#include "global/io_mutex.hpp"
+#include "hailo_device/HailoDeviceInfo.hpp"
+#include <optional>
 
 /**
  * Callback function that processes an OpenCV image (cv::Mat)
  * along with a vector of detection results (HailoDetectionPointer)
  */
-using MatCallback = std::function<void(cv::Mat &, std::vector<HailoDetectionPtr> &)>;
+using FrameReadyCallback = std::function<void(cv::Mat &, const std::vector<HailoDetectionPtr> &)>;
 
 /**
  * DetectionInference encapsulates the logic to perform detection inference on image frames
@@ -35,21 +41,33 @@ class DetectionInference
 {
   private:
     std::mutex frameQueueMutex;
-    std::mutex io_mutex; // Input/Output
 
     const bool QUANTIZED = true; // Reduce precision of numerical values in the neural network
     const hailo_format_type_t FORMAT_TYPE = HAILO_FORMAT_TYPE_AUTO; // Automatically determine the format type for the HAILO device
     
-    double frameHeight;
-    double frameWidth;
+    const uint16_t frameHeight;
+    const uint16_t frameWidth;
 
     std::unique_ptr<hailort::VDevice> vdevice; // Hailo VDevice (virtual device) representing the hailo hardware
+    std::unique_ptr<std::vector<std::reference_wrapper<hailort::Device>>> hailoDevices; // Phyiscal Hailo devices
     // The loaded neural network that will be used for inference
     std::shared_ptr<hailort::ConfiguredNetworkGroup> networkGroup;
     std::pair<std::vector<hailort::InputVStream>, std::vector<hailort::OutputVStream>> vstreams;
     std::unique_ptr<FrameQueue<cv::Mat>> frames;
     std::atomic<bool> hasDetectionStarted{false};
-    MatCallback matCallback;
+    FrameReadyCallback frameReadyCallback;
+
+    std::future<hailo_status> postprocessThread;
+    std::vector<std::future<hailo_status>> readFromHailoDeviceThreads;
+
+    std::unordered_map<std::string, cv::Scalar> bboxColours = bbox_colours;
+    std::unordered_map<uint8_t, std::string> cocoEightyLabels = common::coco_eighty_classes;
+    std::unordered_map<uint8_t, std::string> cocoNinetyLabels = common::coco_ninety_classes;
+
+    HailoDeviceInfo hailoDeviceInfo;
+
+    uint32_t inputVStreamExpectedHeight;
+    uint32_t inputVStreamExpectedWidth;
 
     /**
      * Setup virtual device, network group, and input/output video streams.
@@ -58,7 +76,7 @@ class DetectionInference
      * @param frame_height The height of the frame.
      * @param frame_width The width of the frame.
      */
-    DetectionInference(std::string hef_file, double frame_height, double frame_width);
+    DetectionInference(std::string hef_file, uint16_t frame_height, uint16_t frame_width);
 
     /**
      * Draw detection results on an image frame.
@@ -72,12 +90,9 @@ class DetectionInference
      * Start and continously postprocess frames using the detection features.
      * 
      * @param features The features to process.
-     * @param frames The frames to add the detections to.
-     * @param frame_height The height of the frame.
-     * @param frame_width The width of the frame.
      */
     template <typename T>
-    hailo_status startPostprocessing(std::vector<std::shared_ptr<FeatureData<T>>> &features);
+    hailo_status continuouslyRunPostprocessing(std::vector<std::shared_ptr<FeatureData<T>>> &features);
 
     /**
      * Continuously read data from the inference engine.
@@ -86,7 +101,9 @@ class DetectionInference
      * @param feature The feature data to read into.
      */
     template <typename T>
-    hailo_status readFromOutputDevice(hailort::OutputVStream &output_vstream, std::shared_ptr<FeatureData<T>> feature);
+    hailo_status continuouslyReadInferenceDataFromHailoDevice(
+      hailort::OutputVStream &output_vstream, std::shared_ptr<FeatureData<T>> feature
+    );
 
     /**
      * Start the inference process.
@@ -103,8 +120,8 @@ class DetectionInference
      * 
      * @param vstreams The input and output vstreams.
      */
-    void printNetworkBanner(
-      std::pair<std::vector<hailort::InputVStream>, std::vector<hailort::OutputVStream>> &vstreams
+    void logNetworkBanner(
+      hailort::InputVStream &input_vstream, hailort::OutputVStream &output_vstream
     );
 
     /**
@@ -138,6 +155,16 @@ class DetectionInference
       std::shared_ptr<FeatureData<T>> &feature
     );
 
+    /**
+     * Set the Hailo device information from the first Hailo device found.
+     */
+    void setHailoDeviceInfo();
+
+    /**
+     * Log the Hailo device information.
+     */
+    void logHailoDeviceInfo();
+
   public:
     // Delete copy constructor and assignment operator to prevent copying
     DetectionInference(const DetectionInference &) = delete;
@@ -145,46 +172,59 @@ class DetectionInference
 
     /**
      * Static method to get the singleton instance.
+     * If the instance hasn't been created, it will be created and returned.
      * 
      * @param hef_file The compiled network file for the Hailo device.
      * @param frame_height The desired height of the frame.
      * @param frame_width The desired width of the frame.
      */
-    static DetectionInference& getInstance(std::string hef_file, double frame_height, double frame_width);
+    static DetectionInference& getInstance(std::string hef_file, uint16_t frame_height, uint16_t frame_width);
 
-    ~DetectionInference() {}
+    /**
+     * Gracefully destroy the DetectionInference instance.
+     */
+    ~DetectionInference();
 
     /**
      * Start the detection inference
+     * 
+     * @return A hailo_status indicating the status of the operation.
      */
     hailo_status start();
 
     /**
      * Stop the detection infererence pipeline.
+     * 
+     * @return A hailo_status indicating the status of the operation.
      */
-    void stop();
+    hailo_status stop();
 
     /**
      * Send an image frame to the inference engine.
      * 
      * @param frame The image frame.
      */
-    void writeFrameToDevice(cv::Mat frame);
+    void writeFrameToHailoDevice(cv::Mat frame);
 
     /**
       * Set the callback function that is called when an OpenCV Mat and detections are ready.
       * 
       * @param callback The callback function.
       */
-    void setMatCallback(MatCallback callback);
+    void setFrameReadyCallback(FrameReadyCallback callback);
+
+    /**
+     * Get the Hailo device temperature (in celcius).
+     */
+    std::optional<float32_t> getHailoDeviceTemp();
 };
 
-// ==============================
-// 🔹 Constructor definition 🔹
-// ==============================
+// ===========================================
+// 🔹 Constructor / Destructor definitions 🔹
+// ===========================================
 
-DetectionInference::DetectionInference(std::string hef_file, double frame_height, double frame_width)
-  : frames(std::make_unique<FrameQueue<cv::Mat>>(10)),
+DetectionInference::DetectionInference(std::string hef_file, uint16_t frame_height, uint16_t frame_width)
+  : frames(std::make_unique<FrameQueue<cv::Mat>>(3)),
     frameHeight(frame_height),
     frameWidth(frame_width)
 {
@@ -192,8 +232,8 @@ DetectionInference::DetectionInference(std::string hef_file, double frame_height
 
   if (!vdevice_exp) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
-      std::cerr << BOLDRED << "Error: DetectionInference: startDetection:\n";
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cerr << BOLDRED << "Error: DetectionInference: DetectionInference:\n";
       std::cerr << "Failed to create vdevice, status = " << vdevice_exp.status() << std::endl << RESET;
     }
 
@@ -201,13 +241,40 @@ DetectionInference::DetectionInference(std::string hef_file, double frame_height
   }
 
   this->vdevice = vdevice_exp.release();
-  hailort::Expected<std::shared_ptr<hailort::ConfiguredNetworkGroup>> network_group_exp =
-    configureNetworkGroup(hef_file);
+
+  auto hailo_devices_exp = this->vdevice->get_physical_devices();
+
+  if (!hailo_devices_exp) {
+    {
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cerr << BOLDRED << "Error: DetectionInference: DetectionInference:\n";
+      std::cerr << "Failed to get Hailo physical devices, status = " << hailo_devices_exp.status() << std::endl << RESET;
+    }
+
+    throw std::runtime_error("Failed to get physical Hailo devices with status: " + std::to_string(hailo_devices_exp.status()));
+  }
+
+  this->hailoDevices = std::make_unique<std::vector<std::reference_wrapper<hailort::Device>>>(hailo_devices_exp.release());
+
+  if (this->hailoDevices->empty()) {
+    {
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cerr << BOLDRED << "Error: DetectionInference: DetectionInference:\n";
+      std::cerr << "No Hailo devices found" << std::endl << RESET;
+    }
+
+    throw std::runtime_error("No Hailo devices found");
+  }
+
+  this->setHailoDeviceInfo();
+  this->logHailoDeviceInfo();
+
+  auto network_group_exp = this->configureNetworkGroup(hef_file);
 
   if (!network_group_exp) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
-      std::cerr << BOLDRED << "Error: DetectionInference: startDetection:\n";
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cerr << BOLDRED << "Error: DetectionInference: DetetionInference:\n";
       std::cerr << "Failed to configure network group: " << hef_file << std::endl << RESET;
     }
 
@@ -217,13 +284,12 @@ DetectionInference::DetectionInference(std::string hef_file, double frame_height
   }
 
   this->networkGroup = network_group_exp.release();
-  hailort::Expected<std::pair<std::vector<hailort::InputVStream>, std::vector<hailort::OutputVStream>>>
-    vstreams_exp = hailort::VStreamsBuilder::create_vstreams(*networkGroup, QUANTIZED, FORMAT_TYPE);
+  auto vstreams_exp = hailort::VStreamsBuilder::create_vstreams(*networkGroup, QUANTIZED, FORMAT_TYPE);
   
   if (!vstreams_exp) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
-      std::cerr << BOLDRED << "Error: DetectionInference: startDetection:\n";
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cerr << BOLDRED << "Error: DetectionInference: DetectionInference:\n";
       std::cerr << "Failed to create vstreams: " << vstreams_exp.status() << std::endl << RESET;
     }
 
@@ -231,7 +297,31 @@ DetectionInference::DetectionInference(std::string hef_file, double frame_height
   }
 
   this->vstreams = vstreams_exp.release();
-  this->printNetworkBanner(this->vstreams);
+  this->logNetworkBanner(this->vstreams.first[0], this->vstreams.second[0]);
+
+  hailo_3d_image_shape_t inputVstreamExpectedShape = this->vstreams.first[0].get_info().shape;
+  this->inputVStreamExpectedHeight = inputVstreamExpectedShape.height;
+  this->inputVStreamExpectedWidth = inputVstreamExpectedShape.width;
+
+  {
+    std::lock_guard<std::mutex> lock(io_mutex);
+    std::cout << BOLDBLUE << "DetectionInference setup complete" << std::endl << RESET;
+  }
+}
+
+DetectionInference::~DetectionInference()
+{
+    // Clear input and output vstreams
+    this->vstreams.first.clear();
+    this->vstreams.second.clear();
+
+    this->networkGroup.reset();
+    this->vdevice.reset();
+
+    {
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cout << BOLDBLUE << "\nDetectionInference cleanup complete\n" << std::endl << RESET;
+    }
 }
 
 
@@ -240,9 +330,9 @@ DetectionInference::DetectionInference(std::string hef_file, double frame_height
 // ==================================
 
 DetectionInference& DetectionInference::getInstance(
-  std::string hef_file = "/home/isaac/projects/ai-camera-cpp/network-files/yolov8s.hef",
-  double frame_height = 1080,
-  double frame_width = 1920
+  std::string hef_file = "",
+  uint16_t frame_height = 1080,
+  uint16_t frame_width = 1920
 )
 {
   static std::mutex instanceMutex;
@@ -250,6 +340,113 @@ DetectionInference& DetectionInference::getInstance(
 
   static DetectionInference instance(hef_file, frame_height, frame_width);
   return instance;
+}
+
+void DetectionInference::setHailoDeviceInfo()
+{
+  hailort::Device &device = this->hailoDevices->front().get();
+
+  // Get device type
+  const char *id_exp = device.get_dev_id();
+  const std::string id = id_exp;
+  auto device_type = device.get_type();
+  std::string device_type_str = "<UNKNOWN>";
+    
+  switch (device_type) {
+    case hailort::Device::Type::PCIE:
+      device_type_str = "PCIe";
+      break;
+    case hailort::Device::Type::ETH:
+      device_type_str = "ETH";
+      break;
+    case hailort::Device::Type::INTEGRATED:
+      device_type_str = "INTEGRATED";
+      break;
+  }
+
+  // Get device architecture
+  auto device_architecture_exp = device.get_architecture();
+  hailo_device_architecture_t device_architecture = hailo_device_architecture_t::HAILO_ARCH_MAX_ENUM; // Max enum value as placeholder
+  std::string device_architecture_str = "<UNKNOWN>";
+
+  if (!device_architecture_exp) {
+    std::lock_guard<std::mutex> lock(io_mutex);
+    std::cerr << BOLDRED << "Error: DetectionInference::getHailoDeviceInfo():\n";
+    std::cerr << "Failed to get device architecture for device: " << device_type_str << std::endl << RESET;
+  }
+  else {
+    device_architecture = device_architecture_exp.release();
+
+    switch (device_architecture) {
+      case hailo_device_architecture_t::HAILO_ARCH_HAILO8_A0:
+        device_architecture_str = "HAILO8_A0";
+        break;
+      case hailo_device_architecture_t::HAILO_ARCH_HAILO8:
+        device_architecture_str = "HAILO8";
+        break;
+      case hailo_device_architecture_t::HAILO_ARCH_HAILO8L:
+        device_architecture_str = "HAILO8L";
+        break;
+      case hailo_device_architecture_t::HAILO_ARCH_HAILO15H:
+        device_architecture_str = "HAILO15H";
+        break;
+      case hailo_device_architecture_t::HAILO_ARCH_HAILO15L:
+        device_architecture_str = "HAILO15L";
+        break;
+      case hailo_device_architecture_t::HAILO_ARCH_HAILO15M:
+        device_architecture_str = "HAILO15M";
+        break;
+      case hailo_device_architecture_t::HAILO_ARCH_HAILO10H:
+        device_architecture_str = "HAILO10H";
+        break;
+      case hailo_device_architecture_t::HAILO_ARCH_MAX_ENUM:
+        device_architecture_str = "<ERROR>";
+        break;
+    }
+  }
+
+  this->hailoDeviceInfo = HailoDeviceInfo(
+    id,
+    device_type_str,
+    device_architecture_str
+  );
+}
+
+void DetectionInference::logHailoDeviceInfo()
+{
+  using namespace std;
+  lock_guard<mutex> lock(io_mutex);
+  cout << BOLDBLUE                                                                               << "\n";
+  cout << "====================================================================================" << "\n";
+  cout << "     Hailo Device Information:"                                                       << "\n";
+  cout << "                                Device ID: "
+       << this->hailoDeviceInfo.id                                                               << "\n";
+  cout << "                                Device Type: "
+       << this->hailoDeviceInfo.type                                                             << "\n";
+  cout << "                                Device Architecture: " 
+       << this->hailoDeviceInfo.architecture                                                     << "\n";
+  cout << "====================================================================================" << "\n";
+  cout << endl << RESET;
+}
+
+std::optional<float32_t> DetectionInference::getHailoDeviceTemp()
+{
+  hailort::Device &device = this->hailoDevices->front().get();
+
+  // Get device temperature
+  auto device_temp_exp = device.get_chip_temperature();
+  hailo_chip_temperature_info_t device_temp;
+
+  if (!device_temp_exp) {
+    std::lock_guard<std::mutex> lock(io_mutex);
+    std::cerr << BOLDRED << "Error: DetectionInference::getHailoDeviceStats():\n";
+    std::cerr << "Failed to get device temperature" << std::endl << RESET;
+    return std::nullopt;
+  }
+  else {
+    device_temp = device_temp_exp.release();
+  }
+  return device_temp.ts0_temperature;
 }
 
 void DetectionInference::drawDetections(cv::Mat &frame, const std::vector<HailoDetectionPtr> &detections)
@@ -271,39 +468,32 @@ void DetectionInference::drawDetections(cv::Mat &frame, const std::vector<HailoD
     float ymax = bbox.ymax() * static_cast<float>(this->frameHeight);
 
     std::string label = detection->get_label();
-    cv::Scalar colour(120, 120, 120);
-
-    if (label == "person")            colour = cv::Scalar(50, 200, 0);    // Green
-    else if (label == "car")          colour = cv::Scalar(200, 50, 0);    // Blue
-    else if (label == "bicycle")      colour = cv::Scalar(0, 0, 200);     // Red
-    else if (label == "dog")          colour = cv::Scalar(0, 180, 240);   // Yellow
-    else if (label == "motorcycle")   colour = cv::Scalar(180, 180, 0);   // Teal
-    else if (label == "bus")          colour = cv::Scalar(200, 0, 140);   // Purple
-    else if (label == "truck")        colour = cv::Scalar(255, 140, 0);   // Blue
+    
+    cv::Scalar colour = this->bboxColours[label];
 
     // Draw the bounding box on the frame
     cv::rectangle(frame, cv::Point2f(xmin, ymin), cv::Point2f(xmax, ymax), colour, 2);
 
     // Round the most significant digit from the detection confidence to the nearest integer
-    uint8_t rounded_confidence = static_cast<uint8_t>(((detection->get_confidence() * 100) / 10) + 0.5f);
+    uint8_t confidence = static_cast<uint8_t>(detection->get_confidence() * 100);
     
-    std::string text = label + " " + std::to_string(rounded_confidence) + "0%";
+    std::string text = label + " " + std::to_string(confidence) + "%";
 
     int baseline = 0;
-    float textSize = 1;
-    float textThickness = 2;
-    cv::Size text_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, textSize, textThickness, &baseline);
+    int textSize = 1;
+    int textThickness = 2;
+    cv::Size2f text_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, textSize, textThickness, &baseline);
 
     // Define the position for the text (above the bounding box)
-    cv::Point text_position(xmin, ymin - 10);
+    cv::Point2f text_position(xmin, ymin - 10);
 
     // Draw a filled rectangle as background for the text
     cv::rectangle(
       frame,
-      cv::Point(text_position.x, text_position.y - text_size.height - baseline),
-      cv::Point(text_position.x + text_size.width, text_position.y + baseline),
+      cv::Point2f(text_position.x, text_position.y - text_size.height - static_cast<float>(baseline)),
+      cv::Point2f(text_position.x + text_size.width, text_position.y + static_cast<float>(baseline)),
       colour,
-      cv::FILLED
+      cv::LineTypes::FILLED
     );
 
     // Put the label text over the background rectangle
@@ -312,14 +502,14 @@ void DetectionInference::drawDetections(cv::Mat &frame, const std::vector<HailoD
 }
 
 template <typename T>
-hailo_status DetectionInference::startPostprocessing(std::vector<std::shared_ptr<FeatureData<T>>> &features)
+hailo_status DetectionInference::continuouslyRunPostprocessing(std::vector<std::shared_ptr<FeatureData<T>>> &features)
 {
   // Sort feature data by tensor size
   std::sort(features.begin(), features.end(), &FeatureData<T>::sort_tensors_by_size);
 
   {
-    std::lock_guard<std::mutex> lock(this->io_mutex);
-    std::cout << BOLDBLUE << "Starting postprocessing" << std::endl << RESET;
+    std::lock_guard<std::mutex> lock(io_mutex);
+    std::cout << BOLDBLUE << "\nRunning postprocessing" << std::endl << RESET;
   }
 
   while (this->hasDetectionStarted) {
@@ -349,24 +539,30 @@ hailo_status DetectionInference::startPostprocessing(std::vector<std::shared_ptr
     // Get the frame from the front of the queue
     {
       std::lock_guard<std::mutex> lock(this->frameQueueMutex);
+
+      if (this->frames->isEmpty()) {
+        std::cout << BOLDYELLOW << "DetectionInference::continuouslyRunPostprocessing():" << "\n";
+        std::cout << "Frame queue is empty. Skipping postprocessing..." << std::endl << RESET;
+        continue;
+      }
+
       first_frame = this->frames->front();
     }
 
-    // Resize the first frame to the original dimensions
-    cv::resize(first_frame, first_frame, cv::Size((int)this->frameWidth, (int)this->frameHeight));
+    // Resize the frame to the original dimensions
+    cv::resize(first_frame, first_frame, cv::Size(this->frameWidth, this->frameHeight));
 
     // Draw the detection results on the frame
     this->drawDetections(first_frame, detections);
 
     // Call the callback function if it is set
-    if (this->matCallback != nullptr) {
-      this->matCallback(first_frame, detections);
+    if (this->frameReadyCallback != nullptr) {
+      this->frameReadyCallback(first_frame, detections);
     }
 
     // Release the current frame and remove it from the queue
     first_frame.release();
 
-    // Remove the first frame
     {
       std::lock_guard<std::mutex> lock(this->frameQueueMutex);
       this->frames->dequeue();
@@ -377,7 +573,7 @@ hailo_status DetectionInference::startPostprocessing(std::vector<std::shared_ptr
 }
 
 template <typename T>
-hailo_status DetectionInference::readFromOutputDevice(
+hailo_status DetectionInference::continuouslyReadInferenceDataFromHailoDevice(
   hailort::OutputVStream &output_vstream, std::shared_ptr<FeatureData<T>> feature
 )
 {
@@ -390,8 +586,8 @@ hailo_status DetectionInference::readFromOutputDevice(
 
     if (HAILO_SUCCESS != status) {
       {
-        std::lock_guard<std::mutex> lock(this->io_mutex);
-        std::cerr << BOLDRED << "Error: detection_inference: read_all:\n";
+        std::lock_guard<std::mutex> lock(io_mutex);
+        std::cerr << BOLDYELLOW << "Error: detection_inference: continuouslyReadInferenceDataFromHailoDevice():\n";
         std::cerr << "Failed reading with status = " << status << std::endl << RESET;
       }
 
@@ -402,16 +598,10 @@ hailo_status DetectionInference::readFromOutputDevice(
   return HAILO_SUCCESS;
 }
 
-void DetectionInference::writeFrameToDevice(cv::Mat frame)
+void DetectionInference::writeFrameToHailoDevice(cv::Mat frame)
 {
-  hailort::InputVStream &input_vstream = this->vstreams.first[0];
-
-  hailo_3d_image_shape_t input_shape = input_vstream.get_info().shape;
-  int height = input_shape.height;
-  int width = input_shape.width;
-
   // Resize the input frame to the dimensions required by the network
-  cv::resize(frame, frame, cv::Size(width, height), 1);
+  cv::resize(frame, frame, cv::Size(this->inputVStreamExpectedWidth, this->inputVStreamExpectedHeight), 1);
 
   {
     std::lock_guard<std::mutex> lock(this->frameQueueMutex);
@@ -432,8 +622,8 @@ void DetectionInference::writeFrameToDevice(cv::Mat frame)
 
   if (isFrameQueueEmpty) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
-      std::cout << BOLDYELLOW << "DetectionInference::writeFrame:\n";
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cout << BOLDYELLOW << "DetectionInference::writeFrameToHailoDevice:\n";
       std::cout << "Frame queue is empty" << std::endl << RESET;
     }
     return;
@@ -442,12 +632,14 @@ void DetectionInference::writeFrameToDevice(cv::Mat frame)
   // Verify that the front frame is valid
   if (frontFrame.empty() || frontFrame.data == nullptr) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
-      std::cout << BOLDYELLOW << "DetectionInference::writeFrame:\n";
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cout << BOLDYELLOW << "DetectionInference::writeFrameToHailoDevice:\n";
       std::cout << "Invalid frame" << std::endl << RESET;
     }
     return;
   }
+
+  hailort::InputVStream &input_vstream = this->vstreams.first[0];
   
   hailo_status write_status = input_vstream.write(hailort::MemoryView(
     frontFrame.data,
@@ -456,8 +648,8 @@ void DetectionInference::writeFrameToDevice(cv::Mat frame)
 
   if (write_status != HAILO_SUCCESS) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
-      std::cout << BOLDYELLOW << "DetectionInference::writeFrame:\n";
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cout << BOLDYELLOW << "\nDetectionInference::writeFrameToHailoDevice:\n";
       std::cout << "Status: " << write_status << " -> Failed to write frame to input stream" << std::endl << RESET;
     }
 
@@ -503,7 +695,7 @@ hailo_status DetectionInference::startInference(
 
     if (HAILO_SUCCESS != status) {
       {
-        std::lock_guard<std::mutex> lock(this->io_mutex);
+        std::lock_guard<std::mutex> lock(io_mutex);
         std::cerr << BOLDRED << "Error: detection_inference: run_inference\n";
         std::cerr << "Failure creating feature with status = " << status << std::endl << RESET;
       }
@@ -513,14 +705,13 @@ hailo_status DetectionInference::startInference(
     features.emplace_back(feature);
   }
 
-  std::vector<std::future<hailo_status>> output_threads;
-  output_threads.reserve(output_vstream_size);
+  this->readFromHailoDeviceThreads.reserve(output_vstream_size);
 
   for (size_t i = 0; i < output_vstream_size; i++) {
-    output_threads.emplace_back(
+    this->readFromHailoDeviceThreads.emplace_back(
       std::async(
         std::launch::async,
-        &DetectionInference::readFromOutputDevice<T>,
+        &DetectionInference::continuouslyReadInferenceDataFromHailoDevice<T>,
         this,
         std::ref(output_vstream[i]),
         features[i]
@@ -528,25 +719,24 @@ hailo_status DetectionInference::startInference(
     );
   }
 
-  auto postprocess_thread(
-    std::async(std::launch::async,
-      &DetectionInference::startPostprocessing<T>,
-      this,
-      std::ref(features)
-    )
+  this->postprocessThread = std::async(
+    std::launch::async,
+    &DetectionInference::continuouslyRunPostprocessing<T>,
+    this,
+    std::ref(features)
   );
 
   // Wait for all read threads to complete
-  for (size_t i = 0; i < output_threads.size(); i++) {
-    status = output_threads[i].get();
+  for (size_t i = 0; i < this->readFromHailoDeviceThreads.size(); ++i) {
+    status = this->readFromHailoDeviceThreads[i].get();
   }
 
-  auto postprocess_status = postprocess_thread.get(); // Wait for postprocessing thread to complete
-
+  hailo_status postprocess_status = this->postprocessThread.get(); // Wait for postprocessing thread to complete
+  
   if (HAILO_SUCCESS != status) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
-      std::cerr << BOLDRED << "Error: detection_inference: run_inference:\n";
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cerr << BOLDRED << "Error: DetectionInference::startInference():\n";
       std::cerr << "Read failed with status: " << status << std::endl << RESET;
     }
     return status;
@@ -554,8 +744,8 @@ hailo_status DetectionInference::startInference(
 
   if (HAILO_SUCCESS != postprocess_status) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
-      std::cerr << BOLDRED << "Error: detection_inference: run_inference:\n";
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cerr << BOLDRED << "Error: DetectionInference::startInference():\n";
       std::cerr << "Post-processing failed with status " << postprocess_status << std::endl << RESET;
     }
     return postprocess_status;
@@ -563,34 +753,26 @@ hailo_status DetectionInference::startInference(
 
 
   {
-    std::lock_guard<std::mutex> lock(this->io_mutex);
+    std::lock_guard<std::mutex> lock(io_mutex);
     std::cout << BOLDBLUE << "Inference finished successfully" << RESET << std::endl;
   }
 
   return HAILO_SUCCESS;
 }
 
-void DetectionInference::printNetworkBanner(
-  std::pair<std::vector<hailort::InputVStream>, std::vector<hailort::OutputVStream>> &vstreams
+void DetectionInference::logNetworkBanner(
+  hailort::InputVStream &input_vstream, hailort::OutputVStream &output_vstream
 )
 {
-  std::lock_guard<std::mutex> lock(this->io_mutex);
+  std::lock_guard<std::mutex> lock(io_mutex);
 
-  std::cout << BOLDMAGENTA << "\n-------------------------------------------------\n";
-  std::cout << "     Network  Name                                     \n";
-  std::cout << "-------------------------------------------------\n";
-
-  for (auto const &value : vstreams.first) {
-    std::cout << "     IN:  " << value.name() << "\n";
-  }
-
-  std::cout << "-------------------------------------------------\n";
-
-  for (auto const &value : vstreams.second) {
-    std::cout << "     OUT: " << value.name() << "\n";
-  }
-
-  std::cout << "-------------------------------------------------\n" << std::endl << RESET;
+  std::cout << BOLDBLUE << "\n";
+  std::cout << "====================================================================================" << "\n";
+  std::cout << "     Inference Network Name:"                                                         << "\n";
+  std::cout << "                              IN: " << input_vstream.name()                           << "\n";
+  std::cout << "                              OUT: " << output_vstream.name()                         << "\n";
+  std::cout << "====================================================================================";
+  std::cout << std::endl << RESET;
 }
 
 hailort::Expected<std::shared_ptr<hailort::ConfiguredNetworkGroup>> DetectionInference::configureNetworkGroup(
@@ -622,34 +804,71 @@ hailort::Expected<std::shared_ptr<hailort::ConfiguredNetworkGroup>> DetectionInf
   // Ensure exactly one network group was created
   if (network_groups->size() != 1) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
-      std::cerr << BOLDRED << "Error: detection_inference: configure_network_group:\n";
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cerr << BOLDRED << "\nError: detection_inference: configure_network_group:\n";
       std::cerr << "Invalid amount of network groups" << std::endl << RESET;
     }
 
     return hailort::make_unexpected(HAILO_INTERNAL_FAILURE);
   }
 
-  std::cout << BOLDBLUE << "Configured network group" << std::endl << RESET;
+  std::cout << BOLDBLUE << "Successfully configured network group" << std::endl << RESET;
 
   return std::move(network_groups->at(0));
 }
 
-void DetectionInference::setMatCallback(MatCallback callback)
+void DetectionInference::setFrameReadyCallback(FrameReadyCallback callback)
 {
-  this->matCallback = std::move(callback);
+  this->frameReadyCallback = std::move(callback);
 }
 
-void DetectionInference::stop()
+hailo_status DetectionInference::stop()
 {
+  if (!this->hasDetectionStarted) {
+    std::lock_guard<std::mutex> lock(io_mutex);
+    std::cout << BOLDYELLOW << "DetectionInference::stop():\n";
+    std::cout << "Failed to stop detection inference. Detection inference has not started" << std::endl << RESET;
+    return HAILO_SUCCESS;
+  }
+  {
+    std::lock_guard<std::mutex> lock(io_mutex);
+    std::cout << BOLDBLUE << "\nStopping detection inference..." << std::endl << RESET;
+  }
+
   this->hasDetectionStarted = false;
+
+  for (auto &future : this->readFromHailoDeviceThreads) {
+    future.wait();  // Wait for all inference threads to stop
+  }
+
+  this->readFromHailoDeviceThreads.clear();
+
+  if (this->postprocessThread.valid()) {
+    this->postprocessThread.wait(); // Wait for postprocessing thread to stop
+  }
+
+  this->readFromHailoDeviceThreads.clear();
+
+  {
+    std::lock_guard<std::mutex> lock(io_mutex);
+    std::cout << BOLDBLUE << "\nDetection inference stopped\n" << std::endl << RESET;
+  }
+
+  return HAILO_SUCCESS;
 }
 
 hailo_status DetectionInference::start()
 {
+  if (this->hasDetectionStarted) {
+    std::lock_guard<std::mutex> lock(io_mutex);
+    std::cout << BOLDYELLOW << "DetectionInference::start():\n";
+    std::cout << "Detection inference has already started" << std::endl << RESET;
+    return HAILO_SUCCESS;
+  }
+
   {
-    std::lock_guard<std::mutex> lock(this->io_mutex);
-    std::cout << BOLDBLUE << "Detection inference started" << std::endl << RESET; 
+    std::lock_guard<std::mutex> lock(io_mutex);
+    std::cout << BOLDBLUE << "\nDetection inference started\n" << std::endl << RESET; 
   }
 
   hailo_status status = HAILO_UNINITIALIZED;
@@ -662,7 +881,7 @@ hailo_status DetectionInference::start()
 
   if (HAILO_SUCCESS != status) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
+      std::lock_guard<std::mutex> lock(io_mutex);
       std::cerr << BOLDRED << "Error: DetectionInference: startDetection:\n";
       std::cerr << "Failed starting inference with status = " << status << std::endl << RESET;
     }
@@ -673,21 +892,9 @@ hailo_status DetectionInference::start()
   total_time = t_end - t_start;
   
   {
-    std::lock_guard<std::mutex> lock(this->io_mutex);
-    std::cout << BOLDBLUE << "\nApplication run finished successfully\n";
-    std::cout << "Total application run time: " << (double)total_time.count() << " seconds" << RESET << std::endl;
-  }
-
-  // Clear input and output vstreams
-  this->vstreams.first.clear();
-  this->vstreams.second.clear();
-
-  this->networkGroup.reset();
-  this->vdevice.reset();
-
-  {
-    std::lock_guard<std::mutex> lock(this->io_mutex);
-    std::cout << BOLDBLUE << "DetectionInference stopped and resources cleaned up." << std::endl << RESET;
+    std::lock_guard<std::mutex> lock(io_mutex);
+    std::cout << BOLDBLUE << "\nDetectionInference finished successfully\n";
+    std::cout << "Total run time: " << total_time.count() << " seconds" << RESET << std::endl;
   }
 
   return HAILO_SUCCESS;
@@ -697,20 +904,21 @@ void DetectionInference::filterROI(HailoROIPtr roi)
 {
   if (!roi->has_tensors()) {
     {
-      std::lock_guard<std::mutex> lock(this->io_mutex);
-      std::cout << BOLDYELLOW << "No tensors! Nothing to process!" << std::endl << RESET;
+      std::lock_guard<std::mutex> lock(io_mutex);
+      std::cout << BOLDYELLOW << "\nDetectionInference::filterROI():\n";
+      std::cout << "No tensors! Nothing to process!" << std::endl << RESET;
     }
     return;
   }
 
   std::vector<HailoTensorPtr> tensors = roi->get_tensors();
-  std::map<uint8_t, std::string> labels_map;
+  std::unordered_map<uint8_t, std::string> labels_map;
 
   if (tensors[0]->name().find("mobilenet") != std::string::npos) {
-    labels_map = common::coco_ninety_classes;
+    labels_map = this->cocoNinetyLabels;
   }
   else {
-    labels_map = common::coco_eighty_classes;
+    labels_map = this->cocoEightyLabels;
   }
 
   for (HailoTensorPtr tensor : tensors) {
