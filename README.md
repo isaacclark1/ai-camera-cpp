@@ -50,11 +50,11 @@ cd build/aarch64
 ./AICamera <network_file_path> [frame_height, frame_width, jpeg_quality, frame_skip_factor]
 ```
 
-`network_file_path`: An absolute path to a pre-trained network model to use for object detection REQUIRED. Example: "/home/isaac/projects/ai-camera-cpp/network-files/yolov8m.hef".
-`frame_height`: The height of frames to capture from the camera OPTIONAL - default is 1080.
-`frame_width`: The width of frames to capture from the camera OPTIONAL - default is 1920.
-`jpeg_quality`: The quality to encode the JPEG images sent from the server to clients OPTIONAL. Value should be between 1 and 100.
-`frame_skip_factor`: The factor with which to skip frames for inference OPTIONAL. Frames from Raspberry Pi cameras are captured at 30 FPS so a factor of 2 will reduce frame rate to 15 FPS, a factor of 3 will reduce to 10 FPS, etc. This helps to improve performance at the expense of video stream smoothness.
+- `network_file_path`: An absolute path to a pre-trained network model to use for object detection REQUIRED. Example: "/home/isaac/projects/ai-camera-cpp/network-files/yolov8m.hef".
+- `frame_height`: The height of frames to capture from the camera OPTIONAL - default is 1080.
+- `frame_width`: The width of frames to capture from the camera OPTIONAL - default is 1920.
+- `jpeg_quality`: The quality to encode the JPEG images sent from the server to clients OPTIONAL. Value should be between 1 and 100.
+- `frame_skip_factor`: The factor with which to skip frames for inference OPTIONAL. Frames from Raspberry Pi cameras are captured at 30 FPS so a factor of 2 will reduce frame rate to 15 FPS, a factor of 3 will reduce to 10 FPS, etc. This helps to improve performance at the expense of video stream smoothness.
 
 To install network files for the 26 TOPS HAILO-8 device run the `./get_network_files.sh`. For the 13 TOPS HAILO-8L device, models can be found at: https://github.com/hailo-ai/hailo_model_zoo?tab=readme-ov-file.
 Additional files for the HAILO-8 device can be found here as well. You MUST use files compiled for the device that you have installed. All files must end in ".hef".
