@@ -122,3 +122,9 @@ MIT License
 ## Important Notices
 
 - The Hailo APIs are provided under the LGPL license.
+
+## Documentation
+
+### Class Diagram
+
+![class diagram](/documentatation/class_diagram.jpeg)

@@ -29,6 +29,12 @@ class HardwareMonitor
     CPUStats cpuStats;
     RAMStats ramStats;
 
+    HardwareMonitor() : cpuLabel(""), cpuStats{0}, ramStats{0}
+    {
+      this->updateCpuStats();
+      this->setRamStats();
+    }
+
     /**
      * Get CPU stats from /proc/stat and update the relevant CPUStats and cpuLabel.
      */
@@ -110,10 +116,14 @@ class HardwareMonitor
     }
 
   public:
-    HardwareMonitor() : cpuLabel(""), cpuStats{0}, ramStats{0}
+    /**
+     * Get the singleton instance of the HardwareMonitor class.
+     * If the instance does not exist, it will be created and returned.
+     */
+    static HardwareMonitor& getInstance()
     {
-      this->updateCpuStats();
-      this->setRamStats();
+      static HardwareMonitor instance;
+      return instance;
     }
 
     /**

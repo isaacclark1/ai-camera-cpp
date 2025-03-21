@@ -76,7 +76,7 @@ class DetectionInference
      * @param frame_height The height of the frame.
      * @param frame_width The width of the frame.
      */
-    DetectionInference(std::string hef_file, uint16_t frame_height, uint16_t frame_width);
+    DetectionInference(const std::string hef_file, const uint16_t frame_height, const  uint16_t frame_width);
 
     /**
      * Draw detection results on an image frame.
@@ -178,7 +178,7 @@ class DetectionInference
      * @param frame_height The desired height of the frame.
      * @param frame_width The desired width of the frame.
      */
-    static DetectionInference& getInstance(std::string hef_file, uint16_t frame_height, uint16_t frame_width);
+    static DetectionInference& getInstance(const std::string hef_file, const uint16_t frame_height, const uint16_t frame_width);
 
     /**
      * Gracefully destroy the DetectionInference instance.
@@ -223,7 +223,7 @@ class DetectionInference
 // 🔹 Constructor / Destructor definitions 🔹
 // ===========================================
 
-DetectionInference::DetectionInference(std::string hef_file, uint16_t frame_height, uint16_t frame_width)
+DetectionInference::DetectionInference(const std::string hef_file, const uint16_t frame_height, const  uint16_t frame_width)
   : frames(std::make_unique<FrameQueue<cv::Mat>>(3)),
     frameHeight(frame_height),
     frameWidth(frame_width)
@@ -330,9 +330,9 @@ DetectionInference::~DetectionInference()
 // ==================================
 
 DetectionInference& DetectionInference::getInstance(
-  std::string hef_file = "",
-  uint16_t frame_height = 1080,
-  uint16_t frame_width = 1920
+  const std::string hef_file = "",
+  const uint16_t frame_height = 1080,
+  const uint16_t frame_width = 1920
 )
 {
   static std::mutex instanceMutex;
@@ -349,7 +349,7 @@ void DetectionInference::setHailoDeviceInfo()
   // Get device type
   const char *id_exp = device.get_dev_id();
   const std::string id = id_exp;
-  auto device_type = device.get_type();
+  const auto device_type = device.get_type();
   std::string device_type_str = "<UNKNOWN>";
     
   switch (device_type) {

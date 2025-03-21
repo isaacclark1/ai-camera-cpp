@@ -12,9 +12,9 @@ struct HailoDeviceInfo {
       architecture("<UNKNOWN>") {}
 
   HailoDeviceInfo(
-    std::string device_id,
-    std::string device_type,
-    std::string device_architecture
+    const std::string device_id,
+    const std::string device_type,
+    const std::string device_architecture
   )
     : id(device_id),
       type(device_type),

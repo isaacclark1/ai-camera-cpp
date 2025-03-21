@@ -137,9 +137,9 @@ class Camera
     * @return The singleton instance of the Camera class.
     */
     static Camera& getInstance(
-      uint16_t frame_height,
-      uint16_t frame_width,
-      uint8_t frame_skip_factor
+      const uint16_t frame_height,
+      const uint16_t frame_width,
+      const uint8_t frame_skip_factor
     );
 
     /**
@@ -182,9 +182,9 @@ Camera::Camera(
 }
 
 Camera& Camera::getInstance(
-  uint16_t frame_height = 1080,
-  uint16_t frame_width = 1920,
-  uint8_t frame_skip_factor = 1
+  const uint16_t frame_height = 1080,
+  const uint16_t frame_width = 1920,
+  const uint8_t frame_skip_factor = 1
 )
 {
   static std::mutex instanceMutex;

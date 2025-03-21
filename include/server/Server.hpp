@@ -43,7 +43,7 @@ class Server
     std::mutex clientsMutex;
     std::chrono::time_point<std::chrono::system_clock> lastPersonNotificationTime;
 
-    HardwareMonitor hardwareMonitor;
+    HardwareMonitor &hardwareMonitor;
     CPUStats previousCpuStats{0};
 
     std::thread hailoDeviceTemperatureThread;
@@ -52,7 +52,7 @@ class Server
     std::thread applicationStatusThread;
 
     const uint8_t jpegFrameQuality;
-    std::vector<int> jpegCompressionParams;
+    const std::vector<int> jpegCompressionParams;
 
     Server(const uint8_t jpeg_frame_quality);
 
@@ -145,7 +145,8 @@ Server::Server(const uint8_t jpeg_frame_quality)
     camera(Camera::getInstance()),
     detectionInference(DetectionInference::getInstance()),
     jpegFrameQuality(jpeg_frame_quality),
-    jpegCompressionParams{cv::IMWRITE_JPEG_QUALITY, jpeg_frame_quality, cv::IMWRITE_JPEG_OPTIMIZE, 1}
+    jpegCompressionParams{cv::IMWRITE_JPEG_QUALITY, jpeg_frame_quality, cv::IMWRITE_JPEG_OPTIMIZE, 1},
+    hardwareMonitor(HardwareMonitor::getInstance())
 {
   detectionInference.setFrameReadyCallback(
     // Use lambda to capture "this" pointer.
