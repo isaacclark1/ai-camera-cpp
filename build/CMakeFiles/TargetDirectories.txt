@@ -1,3 +1,0 @@
-/home/isaac/projects/ai-camera-cpp/build/CMakeFiles/AICamera.dir
-/home/isaac/projects/ai-camera-cpp/build/CMakeFiles/edit_cache.dir
-/home/isaac/projects/ai-camera-cpp/build/CMakeFiles/rebuild_cache.dir

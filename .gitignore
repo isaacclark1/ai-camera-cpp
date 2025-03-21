@@ -1,0 +1,27 @@
+# Object files
+*.o
+*.obj
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Build folders
+/build/
+/bin/
+/dist/
+
+# CMake files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# VS Code config
+.vscode/
+
+# Backup files
+*~
+*.swp
+.DS_Store

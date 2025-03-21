@@ -78,12 +78,11 @@
      }
  
      // Computes the width and height of a bounding box from the given bounding box structure.
-     template <typename T>
-     std::pair<float32_t, float32_t> get_shape(T *bbox_struct)
+     std::pair<float, float> get_shape(auto *bbox_struct)
      {
          float32_t w = static_cast<float32_t>(bbox_struct->x_max - bbox_struct->x_min);
          float32_t h = static_cast<float32_t>(bbox_struct->y_max - bbox_struct->y_min);
-         return std::pair<float32_t, float32_t>(w, h);
+         return std::pair<float, float>(w, h);
      }
  
  public:
@@ -99,6 +98,7 @@
            _vstream_info(tensor->vstream_info())
      {
          // Ensure that the output tensor is of NMS type.
+         // MODIFIED BY Isaac Clark 21/03/2025 to use the new constant HAILO_FORMAT_ORDER_HAILO_NMS_BY_CLASS.
          //if (HAILO_FORMAT_ORDER_HAILO_NMS != _vstream_info.format.order) { !---- DEPRACATED - CORRECT CONSTANT IS NOW: HAILO_FORMAT_ORDER_HAILO_NMS_BY_CLASS ---!
          if (HAILO_FORMAT_ORDER_HAILO_NMS_BY_CLASS != _vstream_info.format.order) {
             std::cout << "Output tensor " << _nms_output_tensor->name() << " is not an NMS type" << std::endl;
